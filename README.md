@@ -5,8 +5,11 @@ This is a Django Event Management Application with User Registration, Event Regi
 ##Features
 
 -User Registration and Login
+
 -JWT Auth
+
 -Event Listing
+
 -Users Can Register For Events
 
 - Admins Can Perform CRUD Operations on Events
