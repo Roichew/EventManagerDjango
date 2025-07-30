@@ -1,0 +1,58 @@
+<header>
+  <nav class="container">
+    <div class="logo"><a href="#" class="home-btn">GoLive Asia</a></div>
+
+    <div class="auth-buttons" id="auth-buttons">
+      <a href="#" class="login-btn">Login</a>
+      <a href="#" class="register-btn">Register</a>
+    </div>
+
+    <div class="user-buttons" id="user-buttons">
+      <a href="#" class="events-btn">My Events</a>
+      <a href="#" class="logout-btn">Logout</a>
+    </div>
+  </nav>
+</header>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const token = localStorage.getItem("access_token");
+
+    if (token) {
+      document.getElementById("auth-buttons").style.display = "none";
+      document.getElementById("user-buttons").style.display = "block";
+    } else {
+      document.getElementById("auth-buttons").style.display = "block";
+      document.getElementById("user-buttons").style.display = "none";
+    }
+  });
+
+  document.querySelector(".login-btn").addEventListener("click", function (e) {
+    e.preventDefault();
+    window.location.href = "/api/login/";
+  });
+  document.querySelector(".home-btn").addEventListener("click", function (e) {
+    e.preventDefault();
+    window.location.href = "/api/events/";
+  });
+
+  document.querySelector(".events-btn").addEventListener("click", function (e) {
+    e.preventDefault();
+    window.location.href = "/api/dashboard/";
+  });
+  document.querySelector(".logout-btn").addEventListener("click", function (e) {
+    e.preventDefault();
+    if (confirm("Are you sure you want to log out?")) {
+      alert("Logging out...");
+      localStorage.clear(); // Clear all keys including JWT
+      window.location.href = "/api/events/";
+    }
+  });
+
+  document
+    .querySelector(".register-btn")
+    .addEventListener("click", function (e) {
+      e.preventDefault();
+      window.location.href = "/api/registration/user";
+    });
+</script>

@@ -1,0 +1,191 @@
+<!-- templates/login.html -->
+{% extends 'base.html' %}
+<!--static files-->
+{% load static %}
+<!--title block-->
+{% block title %}Registration{% endblock %}
+<!--content block-->
+
+{% block content %}
+<div class="logincontainer">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>Welcome User</h1>
+      <p>Sign up to register to our events!</p>
+    </div>
+
+    <div class="error-message" id="error-message">
+      Invalid email or password. Please try again.
+    </div>
+
+    <div class="success-message" id="success-message">
+      Login successful! Redirecting...
+    </div>
+
+    <form id="register-form">
+      <div class="form-group">
+        <label for="text">Username</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Enter your username"
+          required
+        />
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="Enter your email"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            onclick="togglePassword()"
+          >
+            Show
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Re-Enter Password</label>
+        <div class="password-wrapper">
+          <input
+            type="password"
+            id="password-validate"
+            name="password-validate"
+            placeholder="Re-enter your password"
+            required
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            onclick="togglePassword()"
+          >
+            Show
+          </button>
+        </div>
+
+      <div class="remember-forgot"></div>
+
+      <button type="submit" class="login-btn-form">Sign In</button>
+    </form>
+
+    <div class="signup-link">
+      Registered before? <a href="#" class="login-link">Log In</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  function togglePassword() {
+    const passwordInput = document.getElementById("password");
+    const toggleBtn = document.querySelector(".toggle-password");
+
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      toggleBtn.textContent = "Hide";
+    } else {
+      passwordInput.type = "password";
+      toggleBtn.textContent = "Show";
+    }
+  }
+
+  function showMessage(type, message) {
+    const errorMsg = document.getElementById("error-message");
+    const successMsg = document.getElementById("success-message");
+
+    // Hide both messages first
+    errorMsg.style.display = "none";
+    successMsg.style.display = "none";
+
+    if (type === "error") {
+      errorMsg.textContent = message;
+      errorMsg.style.display = "block";
+    } else if (type === "success") {
+      successMsg.textContent = message;
+      successMsg.style.display = "block";
+    }
+  }
+
+  document
+    .querySelector(".login-link")
+    .addEventListener("click", function (e) {
+      e.preventDefault();
+      window.location.href = "/api/login";
+    });
+
+  // Handle form submission
+const form = document.getElementById("register-form");
+const errorDiv = document.getElementById("error-message");
+const successDiv = document.getElementById("success-message");
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    errorDiv.style.display = "none";
+    successDiv.style.display = "none";
+
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const passwordValidation = document.getElementById("password-validate").value;
+
+    if (!username || !email || !password) {
+      errorDiv.textContent = "All fields are required.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    if(password !== passwordValidation){
+        errorDiv.textContent = "Passwords are not the same!";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    try {
+      const response = await fetch("/user/register/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        successDiv.textContent = "Registration successful! Redirecting to login...";
+        successDiv.style.display = "block";
+        setTimeout(() => {
+          window.location.href = "/api/login/";
+        }, 1500);
+      } else {
+        errorDiv.textContent = Object.values(data)[0] || "Registration failed.";
+        errorDiv.style.display = "block";
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      errorDiv.textContent = "An unexpected error occurred.";
+      errorDiv.style.display = "block";
+    }
+  });
+</script>
+{% endblock %}

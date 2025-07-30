@@ -1,0 +1,566 @@
+<!-- templates/login.html -->
+{% extends 'base.html' %}
+<!--static files-->
+{% load static %}
+<!--title block-->
+{% block title %}Login{% endblock %}
+<!--content block-->
+
+{% block content %}
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <!-- Image Carousel -->
+          <div class="carousel-container">
+            <div class="carousel" id="carousel">
+              <div class="carousel-slide">
+                <img
+                  src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400'><rect width='800' height='400' fill='%23ff6b6b'/><rect x='100' y='100' width='600' height='200' fill='white' opacity='0.2' rx='10'/><circle cx='400' cy='200' r='50' fill='white' opacity='0.8'/><polygon points='380,180 380,220 420,200' fill='%23ff6b6b'/><text x='400' y='280' text-anchor='middle' fill='white' font-family='Arial' font-size='24' font-weight='bold'>Multi-Camera Setup</text></svg>"
+                  alt="Multi-Camera Live Production"
+                />
+              </div>
+              <div class="carousel-slide">
+                <img
+                  src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400'><rect width='800' height='400' fill='%234ecdc4'/><rect x='50' y='50' width='700' height='300' fill='white' opacity='0.2' rx='15'/><rect x='150' y='150' width='120' height='80' fill='white' opacity='0.8' rx='5'/><rect x='300' y='150' width='120' height='80' fill='white' opacity='0.8' rx='5'/><rect x='450' y='150' width='120' height='80' fill='white' opacity='0.8' rx='5'/><text x='400' y='280' text-anchor='middle' fill='white' font-family='Arial' font-size='24' font-weight='bold'>Remote Streaming</text></svg>"
+                  alt="Remote Streaming Solutions"
+                />
+              </div>
+              <div class="carousel-slide">
+                <img
+                  src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400'><rect width='800' height='400' fill='%2345b7d1'/><circle cx='400' cy='200' r='100' fill='white' opacity='0.2'/><circle cx='400' cy='200' r='60' fill='white' opacity='0.6'/><circle cx='400' cy='200' r='20' fill='white'/><text x='400' y='320' text-anchor='middle' fill='white' font-family='Arial' font-size='24' font-weight='bold'>Event Management</text></svg>"
+                  alt="Professional Event Management"
+                />
+              </div>
+            </div>
+            <button
+              class="carousel-nav carousel-prev"
+              onclick="previousSlide()"
+            >
+              ‹
+            </button>
+            <button class="carousel-nav carousel-next" onclick="nextSlide()">
+              ›
+            </button>
+            <div class="carousel-indicators">
+              <div class="indicator active" onclick="currentSlide(1)"></div>
+              <div class="indicator" onclick="currentSlide(2)"></div>
+              <div class="indicator" onclick="currentSlide(3)"></div>
+            </div>
+          </div>
+
+          <a href="#events" class="cta-button">#LetsGoLive</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Events Section -->
+    <section id="events" class="events">
+      <div class="container">
+        <h2 class="section-title">Upcoming Events</h2>
+
+        <!-- Search and Filter Controls -->
+        <div class="events-controls">
+          <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              class="search-input"
+              id="eventSearch"
+              placeholder="Search events..."
+            />
+          </div>
+        </div>
+
+        <!-- Results Info -->
+        <div class="events-results" id="eventsResults">
+          Showing 6 of 12 events
+        </div>
+
+        <div
+          class="events-grid"
+          id="eventsGrid"
+          data-api-url="{% url 'event-list' %}"
+        ></div>
+
+        <!-- No Results Message -->
+        <div class="no-results hidden" id="noResults">
+          <h3>No events found</h3>
+          <p>Try adjusting your search terms or filters to find more events.</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+          <button class="pagination-btn" id="prevBtn" onclick="changePage(-1)">
+            ‹ Previous
+          </button>
+          <div class="pagination-info" id="pageInfo">Page 1 of 2</div>
+          <button class="pagination-btn" onclick="goToPage(1)">1</button>
+          <button class="pagination-btn active" onclick="goToPage(2)">2</button>
+          <button class="pagination-btn" id="nextBtn" onclick="changePage(1)">
+            Next ›
+          </button>
+        </div>
+      </div>
+    </section>
+
+     <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <img id="modalEventImage" src="" alt="Event Image" style="max-height: 150px; object-fit: cover;" />
+            </div>
+            <div class="modal-body">
+                <div class="modal-details" id="modalDetails"></div>
+                <div class="modal-description" id="modalDescription"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn-primary" id="modalRegisterBtn">Register Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      // Events filtering and pagination
+      let allEvents = [];
+      let filteredEvents = [];
+      let currentPage = 1;
+      const eventsPerPage = 6;
+
+      // Fetch events from API and populate the grid
+      document.addEventListener("DOMContentLoaded", function () {
+          const grid = document.getElementById("eventsGrid");
+          const apiUrl = grid.dataset.apiUrl;
+          if (!apiUrl) {
+            console.error("API URL not provided in data attribute.");
+            return;
+          }
+
+          fetch(apiUrl)
+            .then((response) => response.json())
+            .then((data) => {
+              const events = data.results;
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              allEvents = events;
+              console.log("Fetched events:", allEvents); 
+
+              events.forEach((event) => {
+                console.log(event)
+                const eventDate = new Date(event.event_date)
+
+                if(eventDate >= today){
+                  filteredEvents.push(event)
+                }
+                
+                console.log("EDate: ", eventDate)
+                console.log("Today: ", today)
+                const card = document.createElement("div");
+                card.className = "event-card";
+                card.setAttribute("data-category", event.category || "general");
+                card.addEventListener("click", () => openModal(event));
+                
+                card.innerHTML = `
+                      <div class="event-image"> <img src="${
+                        event.image
+                      }" alt="Event Image" class="img-fluid" /></div>
+                      <div class="event-content">
+                      <div class="event-date">${formatDate(
+                        event.event_date
+                      )}
+                      </div>
+                      <h3>${event.name}</h3>
+                      <p class="event-description">${event.description}</p>
+                      </div>
+                  `;
+
+                grid.appendChild(card);
+              });
+              cardsAnim();
+              updateDisplay();
+            })
+            .catch((error) => {
+              console.error("Error fetching events:", error);
+            });
+        });
+      function openModal(event) {
+              const modal = document.getElementById('eventModal');
+              const modalImage = document.getElementById('modalEventImage');
+              const modalDetails = document.getElementById('modalDetails');
+              const modalDescription = document.getElementById('modalDescription');
+              const modalRegisterBtn = document.getElementById('modalRegisterBtn');
+
+              modalImage.textContent = event.image;
+              modalDescription.textContent = event.description;
+              console.log(event)
+
+              const eventDate = new Date(event.event_date);
+              console.log(eventDate)
+
+              console.log(formatDate(eventDate))
+              modalDetails.innerHTML = `
+                  <div class="modal-detail-item">
+                      <div>
+                          <strong>Name</strong><br>${event.name}
+                      </div>
+                  </div>
+                  <div class="modal-detail-item">
+
+                      <div>
+                          <strong>Date</strong><br>${formatDate(eventDate)}
+                      </div>
+                  </div>
+                  <div class="modal-detail-item">
+  
+                      <div>
+                          <strong>Venue</strong><br>${event.location}
+                      </div>
+                  </div>
+                  <div class="modal-detail-item">
+
+                      <div>
+                          <strong>Capacity</strong><br> ${event.capacity}
+                      </div>
+                  </div>
+              `;
+                  modalRegisterBtn.textContent = 'Register Now';
+                  modalRegisterBtn.disabled = false;
+                  modalRegisterBtn.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                  modalRegisterBtn.onclick = () => handleRegistration(event.id);
+              modal.style.display = 'block';
+          }
+
+          // Close modal
+      function closeModal() {
+              document.getElementById('eventModal').style.display = 'none';
+          }
+
+      function handleRegistration(eventId) {
+          const token = localStorage.getItem("access_token");
+          if(!token){
+             alert("Please Log in/ Register Before Registering!");
+             window.location.href = "/api/login/";
+          }
+
+          fetch("/api/user/", {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          })
+            .then(res => res.json())
+            .then(user => {
+              console.log("User info:", user);
+              const email = user.email;
+              const name = user.name || user.username;
+
+              // Now register for event
+          fetch(`/api/events/${eventId}/register/`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ name, email })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                alert("Registered successfully!");
+              } else {
+                alert("Failed: " + data.message);
+              }
+            });
+          });
+      }
+
+      function parseJwt(token) {
+          try {
+            const base64Url = token.split('.')[1];
+            const base64 = decodeURIComponent(
+              atob(base64Url)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+            );
+            return JSON.parse(base64);
+          } catch (e) {
+            return null;
+          }
+        }
+
+        
+      function formatDate(dateStr) {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        }
+      function updateDisplay() {
+          const grid = document.getElementById("eventsGrid");
+          grid.innerHTML = ""; // Clear old cards
+          const startIndex = (currentPage - 1) * eventsPerPage;
+          const endIndex = startIndex + eventsPerPage;
+          const totalEvents = filteredEvents.length;
+          const totalPages = Math.ceil(totalEvents / eventsPerPage);
+          const currentPageEvents = filteredEvents.slice(startIndex, endIndex);
+
+          currentPageEvents.forEach((event) => {
+            const card = document.createElement("div");
+            card.className = "event-card";
+            card.setAttribute("data-category", event.category || "general");
+            card.addEventListener("click", () => openModal(event));
+
+            card.innerHTML = `
+              <div class="event-image"> <img src="${
+                        event.image
+                      }" alt="Event Image" class="img-fluid" /></div>
+                      <div class="event-content">
+                      <div class="event-date">${formatDate(
+                        event.event_date
+                      )}
+                      </div>
+                      <h3>${event.name}</h3>
+                      <p class="event-description">${event.description}</p>
+                      </div>
+              `;
+            grid.appendChild(card);
+          });
+
+          // Update results info
+          const resultsInfo = document.getElementById("eventsResults");
+          console.log(resultsInfo); // 👈 view in browser console
+          if (totalEvents === 0) {
+            resultsInfo.textContent = "No events found";
+            document.getElementById("noResults").classList.remove("hidden");
+            document.getElementById("pagination").style.display = "none";
+          } else {
+            const showingStart = totalEvents > 0 ? startIndex + 1 : 0;
+            const showingEnd = Math.min(endIndex, totalEvents);
+            resultsInfo.textContent = `Showing ${showingStart}-${showingEnd} of ${totalEvents} events`;
+            document.getElementById("noResults").classList.add("hidden");
+            document.getElementById("pagination").style.display = "flex";
+          }
+
+          // Update pagination
+          updatePagination(totalPages);
+        }
+
+        function filterEvents() {
+          const searchTerm = document
+            .getElementById("eventSearch")
+            .value.toLowerCase();
+          console.log("Filtering events with search term:", searchTerm); // 👈 view in browser console
+          console.log("All events before filtering:", allEvents); // 👈 view in browser console
+          filteredEvents = allEvents.filter((event) => {
+            const title = event.name.toLowerCase();
+            const description = event.description.toLowerCase();
+            return title.includes(searchTerm) || description.includes(searchTerm);
+          });
+
+          currentPage = 1;
+          updateDisplay(); // This function should re-render the filtered events
+        }
+
+      function updatePagination(totalPages) {
+        const pagination = document.getElementById("pagination");
+        const pageInfo = document.getElementById("pageInfo");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+
+        // Update page info
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        // Update navigation buttons
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+
+        // Remove existing page buttons
+        const existingPageBtns = pagination.querySelectorAll(
+          ".pagination-btn:not(#prevBtn):not(#nextBtn)"
+        );
+        existingPageBtns.forEach((btn) => btn.remove());
+
+        // Add new page buttons
+        const maxVisiblePages = 5;
+        let startPage = Math.max(
+          1,
+          currentPage - Math.floor(maxVisiblePages / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage + 1 < maxVisiblePages) {
+          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          const pageBtn = document.createElement("button");
+          pageBtn.className = "pagination-btn";
+          pageBtn.textContent = i;
+          pageBtn.onclick = () => goToPage(i);
+
+          if (i === currentPage) {
+            pageBtn.classList.add("active");
+          }
+
+          pagination.insertBefore(pageBtn, nextBtn);
+        }
+      }
+
+      function goToPage(page) {
+        const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+        if (page >= 1 && page <= totalPages) {
+          currentPage = page;
+          updateDisplay();
+
+          // Smooth scroll to events section
+          document.getElementById("events").scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }
+
+      function changePage(direction) {
+        const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+        const newPage = currentPage + direction;
+        if (newPage >= 1 && newPage <= totalPages) {
+          goToPage(newPage);
+        }
+      }
+
+      // Event listeners for search and filter
+      document
+        .getElementById("eventSearch")
+        .addEventListener("input", filterEvents);
+
+      // Image Carousel functionality
+      let currentSlideIndex = 0;
+      const slides = document.querySelectorAll(".carousel-slide");
+      const indicators = document.querySelectorAll(".indicator");
+      const totalSlides = slides.length;
+
+      function showSlide(index) {
+        const carousel = document.getElementById("carousel");
+        carousel.style.transform = `translateX(-${index * 100}%)`;
+
+        // Update indicators
+        indicators.forEach((indicator, i) => {
+          indicator.classList.toggle("active", i === index);
+        });
+      }
+
+      function nextSlide() {
+        currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+        showSlide(currentSlideIndex);
+      }
+
+      function previousSlide() {
+        currentSlideIndex = (currentSlideIndex - 1 + totalSlides) % totalSlides;
+        showSlide(currentSlideIndex);
+      }
+
+      function currentSlide(index) {
+        currentSlideIndex = index - 1;
+        showSlide(currentSlideIndex);
+      }
+
+      // Auto-advance carousel
+      setInterval(nextSlide, 5000);
+
+      // Event card interactions
+      function registerEvent(event, eventId) {
+        event.stopPropagation(); // Prevent card click
+        openModal(event)
+      }
+
+      // Smooth scrolling for navigation links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+
+      // Add scroll effect to header
+      window.addEventListener("scroll", function () {
+        const header = document.querySelector("header");
+        if (window.scrollY > 100) {
+          header.style.background = "rgba(26, 26, 46, 0.95)";
+        } else {
+          header.style.background = "linear-gradient(135deg, #1a1a2e, #16213e)";
+        }
+      });
+
+      // Add intersection observer for animations
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px",
+      };
+
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = "1";
+            entry.target.style.transform = "translateY(0)";
+          }
+        });
+      }, observerOptions);
+
+      // Initialize everything when DOM is loaded
+      function cardsAnim(){
+        const eventCards = document.querySelectorAll(".event-card");
+        eventCards.forEach((card) => {
+          card.style.opacity = "0";
+          card.style.transform = "translateY(20px)";
+          card.style.transition = "opacity 0.6s ease, transform 0.6s ease";
+          observer.observe(card);
+        });
+      }
+      // Touch/swipe support for carousel on mobile
+      let startX = 0;
+      let isDragging = false;
+
+      const carousel = document.getElementById("carousel");
+
+      carousel.addEventListener("touchstart", function (e) {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+      });
+
+      carousel.addEventListener("touchmove", function (e) {
+        if (!isDragging) return;
+        e.preventDefault();
+      });
+
+      carousel.addEventListener("touchend", function (e) {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const endX = e.changedTouches[0].clientX;
+        const diff = startX - endX;
+
+        if (Math.abs(diff) > 50) {
+          // Minimum swipe distance
+          if (diff > 0) {
+            nextSlide();
+          } else {
+            previousSlide();
+          }
+        }
+      });
+    </script>
+  </body>
+
+{% endblock %}
+

@@ -1,0 +1,492 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'admindashboard.css' %}"
+    />
+    <title>Admin Dashboard - Event Management</title>
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-content">
+          <div class="nav-brand">EventHub Admin</div>
+          <div class="nav-user">
+            <span class="admin-badge">ADMIN</span>
+            <span>Welcome, Admin</span>
+            <a href="#" class="logout-btn" onclick="logout()">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dashboard Content -->
+    <main class="dashboard">
+      <div class="container">
+        <div class="dashboard-header">
+          <div>
+            <h1 class="dashboard-title">Event Management</h1>
+            <p class="dashboard-subtitle">
+              Manage all events and registrations
+            </p>
+          </div>
+          <button class="add-event-btn" onclick="openAddEventModal()">
+            + Add New Event
+          </button>
+        </div>
+
+        <!-- Search and Filter Controls -->
+        <div class="controls">
+          <div class="search-box">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search events..."
+              id="searchInput"
+            />
+            <span class="search-icon">🔍</span>
+          </div>
+          <select class="filter-select" id="statusFilter">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
+
+        <!-- Events Table -->
+        <div class="events-table-container">
+          <table class="events-table" id="eventsTable">
+            <thead>
+              <tr>
+                <th>Event Title</th>
+                <th>Date</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Capacity</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTableBody">
+              <!-- Events will be populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+          <!-- Pagination will be populated by JavaScript -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Add/Edit Event Modal -->
+    <div id="eventModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modalTitle">Add New Event</h2>
+          <button class="close-btn" onclick="closeEventModal()">&times;</button>
+        </div>
+        <form id="eventForm">
+          <div class="form-group">
+            <label class="form-label" for="eventTitle">Event Title</label>
+            <input type="text" class="form-input" id="eventTitle" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eventDate">Date</label>
+            <input type="date" class="form-input" id="eventDate" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eventLocation">Location</label>
+            <input type="text" class="form-input" id="eventLocation" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eventDescription">Description</label>
+            <textarea
+              class="form-input form-textarea"
+              id="eventDescription"
+              placeholder="Enter event description..."
+              required
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eventCapacity">Capacity</label>
+            <input
+              type="number"
+              class="form-input"
+              id="eventCapacity"
+              min="1"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="eventImage">Image</label>
+            <input
+              type="file"
+              class="form-input"
+              id="eventImage"
+              accept="image/*"
+              required
+            />
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="closeEventModal()"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              Add Event
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Sample admin events data
+      let adminEvents = [];
+      let currentPage = 1;
+      const eventsPerPage = 5;
+      let filteredEvents = [...adminEvents];
+      let editingEventId = null;
+
+      // Fetch events from API and populate the grid
+      document.addEventListener("DOMContentLoaded", function () {
+        const token = localStorage.getItem("access_token");
+
+        if (!token) {
+          alert("Please log in to access admin events.");
+          window.location.href = "api/login";
+          return;
+        }
+
+        fetch("/api/events/main", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch events.");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log("Raw API data:", data.results);
+
+            adminEvents = data.results.map((event) => ({
+              id: event.id,
+              title: event.name,
+              date: event.event_date,
+              location: event.location,
+              status:
+                new Date(event.event_date) >= new Date() ? "active" : "expired",
+              description: event.description || "",
+              capacity: event.capacity || 0,
+              image: event.image,
+            }));
+
+            filteredEvents = [...adminEvents];
+            renderEvents();
+            renderPagination();
+          })
+          .catch((error) => {
+            console.error("Error fetching events:", error);
+            alert("Error loading events. Please try again later.");
+          });
+      });
+
+      function renderEvents() {
+        const startIndex = (currentPage - 1) * eventsPerPage;
+        const endIndex = startIndex + eventsPerPage;
+        const eventsToShow = filteredEvents.slice(startIndex, endIndex);
+        const tableBody = document.getElementById("eventsTableBody");
+
+        if (eventsToShow.length === 0) {
+          tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <h3>No events found</h3>
+                    <p>Try adjusting your search criteria or add a new event</p>
+                </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tableBody.innerHTML = eventsToShow
+          .map((event) => {
+            console.log("Event object:", event);
+            return `
+              <tr>
+                  <td class="event-title-cell">${event.title}</td>
+                  <td>${new Date(event.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}</td>
+                  <td>${event.location}</td>
+                  <td>
+                      <span class="event-status-cell status-${event.status}">
+                          ${
+                            event.status.charAt(0).toUpperCase() +
+                            status.slice(1)
+                          }
+                      </span>
+                  </td>
+                  <td>${event.capacity || 0}</td>
+                  <td class="actions-cell">
+                      <button class="action-btn view-btn" onclick="viewEvent(${
+                        event.id
+                      })">View</button>
+                      <button class="action-btn edit-btn" onclick="editEvent(${
+                        event.id
+                      })">Edit</button>
+                      <button class="action-btn delete-btn" onclick="deleteEvent(${
+                        event.id
+                      })">Delete</button>
+                  </td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderPagination() {
+        const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+        const pagination = document.getElementById("pagination");
+
+        if (totalPages <= 1) {
+          pagination.innerHTML = "";
+          return;
+        }
+
+        let paginationHTML = `
+                <button onclick="changePage(${currentPage - 1})" ${
+          currentPage === 1 ? "disabled" : ""
+        }>
+                    Previous
+                </button>
+            `;
+
+        for (let i = 1; i <= totalPages; i++) {
+          paginationHTML += `
+                    <button onclick="changePage(${i})" ${
+            currentPage === i ? 'class="active"' : ""
+          }>
+                        ${i}
+                    </button>
+                `;
+        }
+
+        paginationHTML += `
+                <button onclick="changePage(${currentPage + 1})" ${
+          currentPage === totalPages ? "disabled" : ""
+        }>
+                    Next
+                </button>
+            `;
+
+        pagination.innerHTML = paginationHTML;
+      }
+
+      function changePage(page) {
+        const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+        if (page >= 1 && page <= totalPages) {
+          currentPage = page;
+          renderEvents();
+          renderPagination();
+        }
+      }
+
+      function searchAndFilter() {
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const statusFilter = document.getElementById("statusFilter").value;
+
+        filteredEvents = adminEvents.filter((event) => {
+          const matchesSearch =
+            event.title.toLowerCase().includes(searchTerm) ||
+            event.location.toLowerCase().includes(searchTerm) ||
+            event.description.toLowerCase().includes(searchTerm);
+
+          const matchesStatus = !statusFilter || event.status === statusFilter;
+
+          return matchesSearch && matchesStatus;
+        });
+
+        currentPage = 1;
+        renderEvents();
+        renderPagination();
+      }
+
+      function openAddEventModal() {
+        editingEventId = null;
+        document.getElementById("modalTitle").textContent = "Add New Event";
+        document.getElementById("submitBtn").textContent = "Add Event";
+        document.getElementById("eventForm").reset();
+        document.getElementById("eventModal").style.display = "block";
+      }
+
+      function editEvent(id) {
+        const event = adminEvents.find((e) => e.id === id);
+        if (!event) return;
+
+        editingEventId = id;
+        document.getElementById("modalTitle").textContent = "Edit Event";
+        document.getElementById("submitBtn").textContent = "Update Event";
+
+        document.getElementById("eventTitle").value = event.title;
+        document.getElementById("eventDate").value = event.date;
+        document.getElementById("eventLocation").value = event.location;
+        document.getElementById("eventDescription").value = event.description;
+
+        document.getElementById("eventModal").style.display = "block";
+      }
+
+      function viewEvent(id) {
+        const event = adminEvents.find((e) => e.id === id);
+        if (!event) return;
+
+        alert(
+          `Event Details:\n\nTitle: ${event.title}\nDate: ${event.date}\nLocation: ${event.location}\nStatus: ${event.status}\nCapacity: ${event.capacity}\nDescription: ${event.description}`
+        );
+      }
+
+      function deleteEvent(eventId) {
+        if (!confirm("Are you sure you want to delete this event?")) return;
+
+        fetch(`/api/events/${eventId}/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("access_token"),
+          },
+        })
+          .then((res) => {
+            if (res.ok) {
+              console.log("Event deleted");
+              window.location.reload();
+            } else {
+              throw new Error("Failed to delete event");
+            }
+          })
+          .catch((err) => console.error(err));
+      }
+
+      function closeEventModal() {
+        document.getElementById("eventModal").style.display = "none";
+        editingEventId = null;
+      }
+
+      function submitEventForm(e) {
+        e.preventDefault();
+
+        const formData = new FormData();
+        formData.append("name", document.getElementById("eventTitle").value);
+        formData.append(
+          "event_date",
+          document.getElementById("eventDate").value
+        );
+        formData.append(
+          "location",
+          document.getElementById("eventLocation").value
+        );
+        formData.append(
+          "description",
+          document.getElementById("eventDescription").value
+        );
+        formData.append(
+          "capacity",
+          document.getElementById("eventCapacity").value
+        );
+        const imageInput = document.getElementById("eventImage");
+        if (imageInput.files[0]) {
+          formData.append("image", imageInput.files[0]);
+        }
+
+        const token = localStorage.getItem("access_token");
+
+        if (editingEventId) {
+          fetch(`/api/events/${editingEventId}/`, {
+            method: "PATCH",
+            headers: {
+              Authorization: "Bearer " + token,
+            },
+            body: formData,
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("Failed to update event");
+              return res.json();
+            })
+            .then((data) => {
+              alert("Event updated successfully!");
+              closeEventModal();
+              window.location.reload();
+            })
+            .catch((err) => console.error("Error updating event:", err));
+        } else {
+          fetch("/api/events/main", {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + token,
+            },
+            body: formData,
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("Failed to create event");
+              return res.json();
+            })
+            .then((data) => {
+              alert("Event created successfully!");
+              closeEventModal();
+              window.location.reload();
+            })
+            .catch((err) => console.error("Error creating event:", err));
+        }
+      }
+
+      function logout() {
+        if (confirm("Are you sure you want to logout?")) {
+          alert("Logged out successfully!");
+          localStorage.clear(); // Clear all keys including JWT
+          window.location.href = "/api/events/";
+        }
+      }
+
+      // Event listeners
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", searchAndFilter);
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", searchAndFilter);
+      document
+        .getElementById("eventForm")
+        .addEventListener("submit", submitEventForm);
+
+      // Close modal when clicking outside
+      window.addEventListener("click", function (event) {
+        const modal = document.getElementById("eventModal");
+        if (event.target === modal) {
+          closeEventModal();
+        }
+      });
+
+      // Initial render
+      renderEvents();
+      renderPagination();
+    </script>
+  </body>
+</html>

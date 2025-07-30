@@ -1,0 +1,161 @@
+<!-- templates/login.html -->
+{% extends 'base.html' %}
+<!--static files-->
+{% load static %}
+<!--title block-->
+{% block title %}Login{% endblock %}
+<!--content block-->
+
+{% block content %}
+<div class="logincontainer">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>Welcome Back</h1>
+      <p>Sign in to your account</p>
+    </div>
+
+    <div class="error-message" id="error-message">
+      Invalid email or password. Please try again.
+    </div>
+
+    <div class="success-message" id="success-message">
+      Login successful! Redirecting...
+    </div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label for="email">Username</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Enter your username"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            onclick="togglePassword()"
+          >
+            Show
+          </button>
+        </div>
+      </div>
+
+      <div class="remember-forgot"></div>
+
+      <button type="submit" class="login-btn-form">Sign In</button>
+    </form>
+
+    <div class="signup-link">
+      Don't have an account? <a href="#" class="signup-link">Sign up</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  function togglePassword() {
+    const passwordInput = document.getElementById("password");
+    const toggleBtn = document.querySelector(".toggle-password");
+
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      toggleBtn.textContent = "Hide";
+    } else {
+      passwordInput.type = "password";
+      toggleBtn.textContent = "Show";
+    }
+  }
+
+  function showMessage(type, message) {
+    const errorMsg = document.getElementById("error-message");
+    const successMsg = document.getElementById("success-message");
+
+    // Hide both messages first
+    errorMsg.style.display = "none";
+    successMsg.style.display = "none";
+
+    if (type === "error") {
+      errorMsg.textContent = message;
+      errorMsg.style.display = "block";
+    } else if (type === "success") {
+      successMsg.textContent = message;
+      successMsg.style.display = "block";
+    }
+  }
+
+  document
+    .querySelector(".signup-link")
+    .addEventListener("click", function (e) {
+      e.preventDefault();
+      window.location.href = "/api/registration/user";
+    });
+
+  // Handle form submission
+  document
+    .getElementById("login-form")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorDiv = document.getElementById("error-message");
+      const successDiv = document.getElementById("success-message");
+
+      errorDiv.style.display = "none";
+      successDiv.style.display = "none";
+
+      try {
+        const response = await fetch("/api/token/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          errorDiv.textContent = errorData.detail || "Invalid credentials";
+          errorDiv.style.display = "block";
+          return;
+        }
+
+        const data = await response.json();
+        localStorage.setItem("access_token", data.access);
+        localStorage.setItem("refresh_token", data.refresh);
+
+        const payload = JSON.parse(atob(data.access.split(".")[1]));
+        //debug check if the user is admin or not
+        console.log("Decoded JWT Payload:", payload);
+        console.log("Is Superuser?", payload.is_superuser);
+        console.log("Is Staff?", payload.is_staff);
+        console.log("Username:", payload.username);
+        const isAdmin = payload.is_superuser || payload.is_staff;
+
+        successDiv.textContent = "Login successful!";
+        successDiv.style.display = "block";
+        setTimeout(() => {
+          window.location.href = isAdmin
+            ? "/api/admin-dashboard"
+            : "/api/dashboard";
+        }, 1000);
+      } catch (error) {
+        errorDiv.textContent = "Something went wrong. Please try again.";
+        errorDiv.style.display = "block";
+      }
+    });
+</script>
+{% endblock %}

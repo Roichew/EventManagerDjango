@@ -1,0 +1,25 @@
+.config/
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtualenv
+venv/
+
+# SQLite (if used)
+*.sqlite3
+
+# Django static and media
+staticfiles/
+media/
+
+# Secrets
+.env
+*.key
+*.crt
+*.pem
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store

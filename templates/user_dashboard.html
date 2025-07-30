@@ -1,0 +1,303 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'userdashboard.css' %}"
+    />
+    <title>User Dashboard - Event Management</title>
+  </head>
+  <body>
+    <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="logo"><a href="" id="homepage">GoLive</a></div>
+        <div class="nav-buttons">
+            <button class="nav-btn events-btn">Events</button>
+            <button class="nav-btn logout-btn">Log Out</button>
+        </div>
+    </nav>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Welcome Back!</h1>
+            <p class="dashboard-subtitle">Manage and explore your registered events</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="controls-row">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" placeholder="Search events..." id="searchInput">
+                </div>
+                <select class="filter-select" id="statusFilter">
+                    <option value="">All Events</option>
+                    <option value="active">Active</option>
+                    <option value="expired">Completed</option>
+                </select>
+
+            </div>
+        </div>
+
+        <!-- Events Grid -->
+        <div class="events-grid" id="eventsGrid">
+            <!-- Events will be dynamically populated here -->
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+            <!-- Pagination will be dynamically populated here -->
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <h2 id="modalTitle">Event Details</h2>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Modal content will be dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let events = [];
+        let currentPage = 1;
+        const eventsPerPage = 6;
+
+        document.addEventListener('DOMContentLoaded', async function () {
+          const token = localStorage.getItem("access_token");
+
+         fetch("/api/my-registrations/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch events.");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log("Raw API data:", data.results);
+
+            events = data.results.map((registration) => {
+            const e = registration.event;
+            return {
+              id: e.id,
+              title: e.name,
+              date: e.event_date,
+              location: e.location,
+              status: new Date(e.event_date) >= new Date() ? "active" : "expired",
+              description: e.description || "",
+              capacity: e.capacity || 0,
+            };
+          });
+
+            filteredEvents = [...events];
+            renderEvents();
+            renderPagination();
+            setupEventListeners();
+          })
+          .catch((error) => {
+            console.error("Error fetching events:", error);
+            alert("Error loading events. Please try again later.");
+          });
+      });
+        function setupEventListeners() {
+            
+            document.getElementById('homepage').addEventListener('click', function (e) {
+                e.preventDefault();
+                window.location.href = "/api/events/";
+            });
+
+            
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', function() {
+                filterEvents();
+            });
+
+            // Filter functionality
+            document.getElementById('statusFilter').addEventListener('change', function() {
+                filterEvents();
+            });
+
+            // Modal close on outside click
+            document.getElementById('eventModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+
+        }
+
+        function filterEvents() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredEvents = events.filter(event => {
+                const matchesSearch = event.title.toLowerCase().includes(searchTerm) || 
+                                    event.description.toLowerCase().includes(searchTerm);
+                const matchesStatus = !statusFilter || event.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            currentPage = 1;
+            renderEvents();
+            renderPagination();
+        }
+
+        function renderEvents() {
+            const startIndex = (currentPage - 1) * eventsPerPage;
+            const endIndex = startIndex + eventsPerPage;
+            const eventsToShow = filteredEvents.slice(startIndex, endIndex);
+
+            const eventsGrid = document.getElementById('eventsGrid');
+            eventsGrid.innerHTML = '';
+
+            eventsToShow.forEach(event => {
+                const eventCard = createEventCard(event);
+                eventsGrid.appendChild(eventCard);
+            });
+        }
+
+        function createEventCard(event) {
+          const card = document.createElement('div');
+          card.className = 'event-card';
+          card.onclick = () => openModal(event);
+
+          const statusClass = `status-${event.status}`;
+          const statusText = event.status.charAt(0).toUpperCase() + event.status.slice(1);
+
+          console.log("event log: ", event);
+
+          card.innerHTML = `
+            <div class="event-image">
+                <span class="event-status ${statusClass}">${statusText}</span>
+                🎯
+            </div>
+            <div class="event-content">
+                <h3 class="event-title">${event.title}</h3>
+                <div class="event-date">📅 ${new Date(event.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}</div>
+                <p class="event-description">${event.description}</p>
+                <div class="event-meta">
+                    <span>📍 ${event.location}</span>
+                    <span>👥 ${event.capacity}</span>
+                </div>
+            </div>
+          `;
+
+          return card;
+        }
+
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.textContent = 'Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => changePage(currentPage - 1);
+            pagination.appendChild(prevBtn);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+                pageBtn.textContent = i;
+                pageBtn.onclick = () => changePage(i);
+                pagination.appendChild(pageBtn);
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.textContent = 'Next';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => changePage(currentPage + 1);
+            pagination.appendChild(nextBtn);
+        }
+
+        function changePage(page) {
+            const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                renderEvents();
+                renderPagination();
+            }
+        }
+
+        function openModal(event) {
+            const modal = document.getElementById('eventModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = event.title;
+
+            modalBody.innerHTML = `
+                <div class="modal-section">
+                    <h3>Event Details</h3>
+                    <p>${event.description}</p>
+                </div>
+                    <div class="info-item">
+                        <div class="info-label">Date & Time</div>
+                        <div class="info-value">${new Date(event.date).toLocaleDateString("en-US", {
+                                                    year: "numeric",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                })}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Location</div>
+                        <div class="info-value">${event.location}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">${event.status.charAt(0).toUpperCase() + event.status.slice(1)}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Capacity</div>
+                        <div class="info-value">${event.capacity} Seatings</div>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('eventModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        document.querySelector('.logout-btn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to log out?')) {
+                alert('Logging out...');
+                localStorage.clear(); // Clear all keys including JWT
+                window.location.href = "/api/events/";
+            }
+        });
+    </script>
+  </body>
+</html>
