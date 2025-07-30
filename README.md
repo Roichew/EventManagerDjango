@@ -14,7 +14,7 @@ This is a Django Event Management Application with User Registration, Event Regi
 
 - Admins Can Perform CRUD Operations on Events
 
-##Project Configurations
+## Project Configurations
 
 1. After Clonning the Repository
 
