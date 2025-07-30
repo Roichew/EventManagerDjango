@@ -91,7 +91,7 @@ class RegistrationDetailsView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Registration.objects.select_related('event')
 
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
+@permission_classes([permissions.IsAuthenticated])
 def register_event(request, event_id):
     """Register a user for a specific event"""
     try:
